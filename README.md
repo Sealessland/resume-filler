@@ -1,72 +1,97 @@
 # resume-filler
 
-通过 **Kimi WebBridge** 控制真实浏览器填写招聘/简历/网申表单（百度人才、OPPO 校招等）的实战经验与踩坑记录，封装为可复用 skill，分发到多个 AI agent 工具。
+把真实招聘、简历、网申页面的填表经验沉淀成 `webbridge-form-filling` skill，并分发到多个 AI agent 工具。
 
-> 每条经验均来自真实踩坑，覆盖：WebBridge 连接与升级、复用已打开标签、Element UI/Plus 表单定位、React 受控组件赋值、下拉/级联/日期选择器交互、长文本多栏拆分、填充后验证。
+这个仓库不是通用表单自动化框架，而是一份可复用的实战规程：复用用户已登录浏览器，读取可靠简历来源，小批量填入字段，逐项回读验证，并在保存/提交前停下。
 
-## 快速开始
+## 适用场景
+
+- 用 Kimi WebBridge 驱动用户真实浏览器填写招聘系统、简历中心、网申表单。
+- 处理 Element UI / Element Plus、React/Vue 受控输入、远程搜索下拉、级联、日期选择器。
+- 把简历长文本拆到项目描述、项目职责、技能、个人总结等对应栏目。
+- 在百度人才、OPPO 校招等页面中复用已验证过的定位、填入和验证策略。
+
+## 安装
 
 ```bash
-# 安装到当前机器上的所有 agent（claude-code / codex / omp / opencode / kimi-code）
+# 安装到当前机器上已存在的全部 agent 目录
 bash webbridge-form-filling/install.sh
 
-# 只安装到 Codex；不写入的预演则加 --dry-run
+# 只安装到指定 agent
+bash webbridge-form-filling/install.sh --agent omp
 bash webbridge-form-filling/install.sh --agent codex
+
+# 预演，不写入文件
+bash webbridge-form-filling/install.sh --agent codex --dry-run
 ```
 
-也可以手动把对应目录复制到各 agent 的 skills 目录：
+支持的 agent 名称：`claude-code`、`codex`、`omp`、`opencode`、`kimi-code`。
+
+也可以手动复制对应分发目录：
 
 | Agent | 分发版 | 目标目录 |
 |---|---|---|
-| Claude Code | `dist/claude-code/` | `~/.claude/skills/` |
-| Codex | `dist/codex/` | `~/.codex/skills/` |
-| OMP | `dist/omp/` | `~/.omp/agent/skills/` |
-| opencode | `dist/opencode/` | `~/.opencode/skills/` |
-| kimi-code | `dist/kimi-code/` | `~/.kimi-code/skills/` |
+| Claude Code | `webbridge-form-filling/dist/claude-code/` | `~/.claude/skills/` |
+| Codex | `webbridge-form-filling/dist/codex/` | `~/.codex/skills/` |
+| OMP | `webbridge-form-filling/dist/omp/` | `~/.omp/agent/skills/` |
+| opencode | `webbridge-form-filling/dist/opencode/` | `~/.opencode/skills/` |
+| kimi-code | `webbridge-form-filling/dist/kimi-code/` | `~/.kimi-code/skills/` |
+
+## 使用边界
+
+- 先读 `kimi-webbridge`，再读 `webbridge-form-filling`；两者配套使用。
+- 用户说“填简历”“填表单”“网申”“把当前网页补全”等，默认复用当前浏览器标签页。
+- 信息源只来自用户提供的简历、JSON、页面已有值或明确指示；不编造公司、岗位、院系、籍贯、证件号、日期等事实。
+- 填入必须走真实可见控件和事件链；不要直接篡改 Vue/React 内部 props/model 当作完成。
+- 每个区块填完都要回读验证字段值、长度、下拉回显和卡片数量。
+- 除非用户明确授权，不点击保存、下一步、提交、投递。
+
+## Skill 要点
+
+1. **连接与标签页**：daemon 不通时启动；扩展未连接时短重试；优先复用已打开标签和同一 session。
+2. **表单扫描**：用 DOM / `evaluate` 建立 label → input 映射，给目标控件打 `data-*` 标记；动态卡片展开后重新打标。
+3. **受控输入**：`fill` 失败时用原生 setter + `input/change/blur` 事件；可见值变化不等于框架状态已更新。
+4. **下拉选择**：按键盘、真实鼠标、可见 dropdown 面板逐级升级；远程搜索下拉用真实输入触发候选。
+5. **日期字段**：优先使用已有来源；按控件格式直接输入并确认，不为缺失月份或项目日期编造值。
+6. **多项目卡片**：先切分原文，再按卡片局部输入填；新增卡片后重新扫描，避免项目错位。
+7. **OPPO 专项**：短路径恢复页面、按模块标题找编辑按钮、先打开“有”再填项目、学校远程搜索精确选择。
 
 ## 仓库结构
 
-```
+```text
 resume-filler/
 ├── README.md
 └── webbridge-form-filling/
-    ├── SKILL.md          # 规范版（单一内容源）
-    ├── agents/openai.yaml # Codex UI 元数据源
-    ├── install.sh        # 安装全部或指定 agent
+    ├── SKILL.md              # 规范版，唯一正文来源
+    ├── agents/openai.yaml    # Codex UI 元数据来源
+    ├── install.sh            # 安装全部或指定 agent
     ├── scripts/
-    │   └── sync_dist.py # 确定性生成/检查分发版
+    │   └── sync_dist.py      # 确定性生成 / 检查分发版
     ├── tests/
-    │   └── install_test.sh
-    └── dist/             # 各 agent 的分发版（frontmatter 遵循各自格式）
+    │   └── install_test.sh   # 安装器烟测
+    └── dist/                 # 各 agent 分发版，仅 frontmatter 不同
         ├── claude-code/SKILL.md
         ├── codex/SKILL.md
+        ├── kimi-code/SKILL.md
         ├── omp/SKILL.md
-        ├── opencode/SKILL.md
-        └── kimi-code/SKILL.md
+        └── opencode/SKILL.md
 ```
 
-## skill 要点速览
+## 维护流程
 
-1. **连接与升级** — daemon 掉了自己 `start`；版本不匹配跑 `kimi-webbridge upgrade`
-2. **复用已打开标签** — `find_tab + active:true`，URL 匹配用域名（不带超长 query）；`session` 全程一致
-3. **摸清表单结构** — 用 `evaluate` 抓 `.el-form-item` label→输入框映射，别死磕 snapshot；给输入框打 `data-*` 标记；警惕可见 textarea + 隐藏镜像
-4. **React 受控组件** — textarea 的 `fill` 会报 `Uncaught`，改用原生 setter + input/change 事件
-5. **下拉选择器** — 合成 click 打不开；依次试键盘 ArrowDown → CDP 真实鼠标；多面板并存时定位可见的那个；远程搜索型下拉用 CDP `insertText`
-6. **日期选择器** — 直接填值 + Enter，不用点日历格子
-7. **多项目拆分** — 先读原文切块，逐卡片填；无对应栏目时明确告知
-8. **必填与收尾** — 只问关键缺失信息；不擅自点保存/投递
-9. **请求体构造** — 中文长文本用 Python 写 JSON + `curl --data-binary @file`
+只编辑规范版：
 
-## 维护
+```bash
+$EDITOR webbridge-form-filling/SKILL.md
+python3 webbridge-form-filling/scripts/sync_dist.py
+```
 
-- 只编辑 `webbridge-form-filling/SKILL.md`；不要手改 `dist/`。
-- 生成分发版：`python3 webbridge-form-filling/scripts/sync_dist.py`。
-- 本地执行与 CI 相同的检查：
+提交前运行与 CI 相同的检查：
 
-  ```bash
-  python3 webbridge-form-filling/scripts/sync_dist.py --check
-  bash -n webbridge-form-filling/install.sh webbridge-form-filling/tests/install_test.sh
-  bash webbridge-form-filling/tests/install_test.sh
-  ```
+```bash
+python3 webbridge-form-filling/scripts/sync_dist.py --check
+bash -n webbridge-form-filling/install.sh webbridge-form-filling/tests/install_test.sh
+bash webbridge-form-filling/tests/install_test.sh
+```
 
-分发版仅在 frontmatter 上适配平台，正文始终与规范版一致。
+不要手改 `dist/`。分发版正文必须与 `SKILL.md` 一致，只允许 frontmatter 适配不同 agent。
