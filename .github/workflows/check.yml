@@ -1,0 +1,23 @@
+name: check
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  skill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Check generated distributions
+        run: python3 webbridge-form-filling/scripts/sync_dist.py --check
+      - name: Check shell syntax
+        run: bash -n webbridge-form-filling/install.sh webbridge-form-filling/tests/install_test.sh
+      - name: Test installer
+        run: bash webbridge-form-filling/tests/install_test.sh

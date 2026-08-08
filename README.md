@@ -9,6 +9,9 @@
 ```bash
 # 安装到当前机器上的所有 agent（claude-code / codex / omp / opencode / kimi-code）
 bash webbridge-form-filling/install.sh
+
+# 只安装到 Codex；不写入的预演则加 --dry-run
+bash webbridge-form-filling/install.sh --agent codex
 ```
 
 也可以手动把对应目录复制到各 agent 的 skills 目录：
@@ -27,8 +30,13 @@ bash webbridge-form-filling/install.sh
 resume-filler/
 ├── README.md
 └── webbridge-form-filling/
-    ├── SKILL.md          # 规范版（源码，kimi-code 格式）
-    ├── install.sh        # 一键分发到全部 5 个 agent
+    ├── SKILL.md          # 规范版（单一内容源）
+    ├── agents/openai.yaml # Codex UI 元数据源
+    ├── install.sh        # 安装全部或指定 agent
+    ├── scripts/
+    │   └── sync_dist.py # 确定性生成/检查分发版
+    ├── tests/
+    │   └── install_test.sh
     └── dist/             # 各 agent 的分发版（frontmatter 遵循各自格式）
         ├── claude-code/SKILL.md
         ├── codex/SKILL.md
@@ -51,5 +59,14 @@ resume-filler/
 
 ## 维护
 
-- 修改经验请先改根目录 `SKILL.md`（规范版），再同步到 `dist/*/SKILL.md`（注意各 agent 的 frontmatter 格式差异）。
-- 分发版格式差异：Claude Code 含 `version` + 中文双引号 description；Codex 极简 name+description；OMP 用 `description: |` 块状；opencode 单行双引号 description；kimi-code 含 `metadata.version`。
+- 只编辑 `webbridge-form-filling/SKILL.md`；不要手改 `dist/`。
+- 生成分发版：`python3 webbridge-form-filling/scripts/sync_dist.py`。
+- 本地执行与 CI 相同的检查：
+
+  ```bash
+  python3 webbridge-form-filling/scripts/sync_dist.py --check
+  bash -n webbridge-form-filling/install.sh webbridge-form-filling/tests/install_test.sh
+  bash webbridge-form-filling/tests/install_test.sh
+  ```
+
+分发版仅在 frontmatter 上适配平台，正文始终与规范版一致。

@@ -1,0 +1,4 @@
+interface:
+  display_name: "WebBridge Form Filling"
+  short_description: "Safely fill and verify recruiting forms"
+  default_prompt: "Use $webbridge-form-filling to fill the open recruiting form from my resume, verify each field, and stop before saving or submitting."
